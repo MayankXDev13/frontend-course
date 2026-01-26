@@ -23,10 +23,25 @@ export const users = [
 
 export async function GET(request: NextRequest) {
     try {
+
+        const sarchParams = request.nextUrl.searchParams
+        const name = sarchParams.get("name") // this get you single value
+        const age = sarchParams.get("age") // this get you single value
+
+        let filteredUsers = users
+
+        if (age) {
+            filteredUsers = filteredUsers.filter((user) => user.age === Number(age))
+        }
+
+        if (name) {
+            filteredUsers = filteredUsers.filter((user) => user.name.toLowerCase().includes(name.toLowerCase()))
+        }
+
         return NextResponse.json({
             success: true,
-            data: users,
-            total: users.length,
+            data: filteredUsers,
+            total: filteredUsers.length,
         }, {
             status: 200,
         })
