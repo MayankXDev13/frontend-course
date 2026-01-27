@@ -14,6 +14,10 @@ const noteSchema = new mongoose.Schema(
       maxLength: 2000,
       trim: true,
     },
+    status: {
+      type: Boolean,
+      default: true,
+    },
   },
   { timestamps: true }
 );

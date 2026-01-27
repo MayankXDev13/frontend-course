@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 
 interface Note {
@@ -9,10 +9,12 @@ interface Note {
   content: string;
   createdAt: string;
   updatedAt: string;
+  status: boolean;
 }
 
-const NotesClient = ({ initialNotes }: { initialNotes: Note[] }) => {
-  const [notes, setNotes] = useState<Note[]>(initialNotes);
+const NotesClient = () => {
+  const [notes, setNotes] = useState<Note[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
@@ -21,9 +23,30 @@ const NotesClient = ({ initialNotes }: { initialNotes: Note[] }) => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState('');
   const [editContent, setEditContent] = useState('');
+  const [editStatus, setEditStatus] = useState<boolean>(true);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
 
-  // CREATE
+  const getNotes = async () => {
+    try {
+      const res = await fetch('/api/notes', { cache: 'no-store' });
+      const result = await res.json();
+
+      if (result.success) {
+        setNotes(result.data);
+      } else {
+        toast.error('Failed to fetch notes');
+      }
+    } catch {
+      toast.error('Something went wrong');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    getNotes();
+  }, [loading]);
+
   const createNote = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!title.trim() || !content.trim()) return;
@@ -51,7 +74,6 @@ const NotesClient = ({ initialNotes }: { initialNotes: Note[] }) => {
     }
   };
 
-  // DELETE
   const deleteNote = async (id: string) => {
     try {
       const res = await fetch(`/api/notes/${id}`, { method: 'DELETE' });
@@ -66,16 +88,20 @@ const NotesClient = ({ initialNotes }: { initialNotes: Note[] }) => {
     }
   };
 
-  // UPDATE
   const updateNote = async (id: string) => {
     if (!editTitle.trim() || !editContent.trim()) return;
+    setLoading(true);
 
     setUpdatingId(id);
     try {
       const res = await fetch(`/api/notes/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: editTitle, content: editContent }),
+        body: JSON.stringify({
+          title: editTitle,
+          content: editContent,
+          status: editStatus,
+        }),
       });
 
       const result = await res.json();
@@ -91,6 +117,7 @@ const NotesClient = ({ initialNotes }: { initialNotes: Note[] }) => {
       toast.error('Something went wrong');
     } finally {
       setUpdatingId(null);
+      setLoading(false);
     }
   };
 
@@ -98,17 +125,22 @@ const NotesClient = ({ initialNotes }: { initialNotes: Note[] }) => {
     setEditingId(note._id);
     setEditTitle(note.title);
     setEditContent(note.content);
+    setEditStatus(note.status);
   };
 
   const cancelEdit = () => {
     setEditingId(null);
     setEditTitle('');
     setEditContent('');
+    setEditStatus(true);
   };
+
+  if (loading) {
+    return <p className="text-center text-gray-500">Loading notes...</p>;
+  }
 
   return (
     <div className="space-y-6">
-      {/* CREATE FORM */}
       <form onSubmit={createNote} className="bg-white p-6 rounded-lg shadow-md">
         <h2 className="text-xl font-semibold mb-4">Create New Note</h2>
 
@@ -141,7 +173,6 @@ const NotesClient = ({ initialNotes }: { initialNotes: Note[] }) => {
         </div>
       </form>
 
-      {/* NOTES LIST */}
       <div className="space-y-4">
         <h2 className="text-xl font-semibold">Your Notes ({notes.length})</h2>
 
@@ -164,6 +195,15 @@ const NotesClient = ({ initialNotes }: { initialNotes: Note[] }) => {
                     rows={4}
                     className="w-full p-3 border rounded-md mb-3"
                   />
+
+                  <select
+                    value={String(editStatus)}
+                    onChange={(e) => setEditStatus(e.target.value === 'true')}
+                    className="w-full p-3 border rounded-md mb-3"
+                  >
+                    <option value="true">Active</option>
+                    <option value="false">Inactive</option>
+                  </select>
 
                   <div className="flex gap-2">
                     <button
@@ -204,15 +244,13 @@ const NotesClient = ({ initialNotes }: { initialNotes: Note[] }) => {
 
                   <p className="text-gray-700 mb-2">{note.content}</p>
 
-                  <p className="text-sm text-gray-500">
-                    Created: {new Date(note.createdAt).toLocaleDateString()}
+                  <p
+                    className={`text-sm font-medium ${
+                      note.status ? 'text-green-600' : 'text-red-500'
+                    }`}
+                  >
+                    Status: {note.status ? 'Active' : 'Inactive'}
                   </p>
-
-                  {note.updatedAt !== note.createdAt && (
-                    <p className="text-sm text-gray-500">
-                      Updated: {new Date(note.updatedAt).toLocaleDateString()}
-                    </p>
-                  )}
                 </>
               )}
             </div>
